@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DragonLie Racing Exhaust - ERP & POS System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#121212',
+                        cardbg: '#1e1e1e',
+                        borderbg: '#2d2d2d',
+                        racingred: '#dc2626',
+                        racingredhover: '#b91c1c',
+                        racingorange: '#f97316'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #121212; color: #e5e7eb; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #121212; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #dc2626; }
+        @media print {
+            body * { visibility: hidden; }
+            #printable-area, #printable-area * { visibility: visible; }
+            #printable-area { position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; padding: 20px; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-darkbg min-h-screen flex flex-col">
+
+    <!-- KONFIGURASI GLOBAL APP -->
+    <script>
+        // =========================================================================
+        // TEMPEL URL GOOGLE APPS SCRIPT WEB APP HASIL DEPLOYMENT DI SINI (/exec)
+        // =========================================================================
+        const CONFIG = {
+            GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz3NF4g8_kPzdkmN18B2WfyCIyyvfnAiLB_fzobPJUwiPB4sRswWm4tUSEsVdQoi-AQ/exec"
+        };
+    </script>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-racingred border-opacity-75"></div>
+        <p id="loadingText" class="mt-4 text-gray-300 font-semibold text-lg">Memuat data dari server...</p>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-x-full opacity-0 max-w-md">
+        <div id="toastContent" class="flex items-center p-4 rounded-lg shadow-lg bg-cardbg border-l-4 border-racingred text-white">
+            <i id="toastIcon" class="fas fa-info-circle mr-3 text-xl"></i>
+            <span id="toastMessage" class="text-sm">Pesan notifikasi</span>
+        </div>
+    </div>
+
+    <!-- HEADER / NAVBAR -->
+    <header id="mainHeader" class="bg-cardbg border-b border-borderbg px-6 py-4 flex flex-wrap justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-racingred p-2 rounded-lg text-white font-bold text-xl tracking-wider">DL</div>
+            <div>
+                <h1 class="font-extrabold text-xl text-white tracking-wide flex items-center">
+                    DRAGONLIE <span class="text-racingred ml-1">RACING EXHAUST</span>
+                </h1>
+                <p class="text-xs text-gray-400">System ERP, Kasir & Pembukuan Operasional</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-6 mt-2 sm:mt-0">
+            <div class="flex items-center space-x-2 text-xs bg-darkbg px-3 py-1.5 rounded-full border border-borderbg">
+                <span id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                <span id="statusText" class="text-gray-300 font-medium">MEMERIKSA KONEKSI</span>
+            </div>
+            <div id="userProfile" class="hidden flex items-center space-x-3 border-l border-borderbg pl-4">
+                <div class="text-right">
+                    <div id="userName" class="text-sm font-bold text-white">-</div>
+                    <div id="userRole" class="text-xs text-racingorange font-semibold uppercase">-</div>
+                </div>
+                <button onclick="logout()" class="p-2 bg-darkbg hover:bg-racingred/20 text-gray-400 hover:text-racingred rounded-lg transition" title="Keluar">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- VIEW CONTAINER -->
+    <div id="appContainer" class="flex-1 flex overflow-hidden">
+        
+        <!-- LOGIN VIEW -->
+        <div id="loginView" class="flex-1 flex items-center justify-center p-6">
+            <div class="bg-cardbg border border-borderbg rounded-xl shadow-2xl w-full max-w-md p-8">
+                <div class="text-center mb-6">
+                    <i class="fas fa-motorcycle text-4xl text-racingred mb-2"></i>
+                    <h2 class="text-2xl font-bold text-white">Login Sistem</h2>
+                    <p class="text-xs text-gray-400 mt-1">Pilih peran akun dan masukkan autentikasi</p>
+                </div>
+
+                <!-- LOGIN TABS -->
+                <div class="flex border-b border-borderbg mb-6">
+                    <button id="tabAdminBtn" onclick="switchLoginTab('admin')" class="flex-1 py-2 text-center text-sm font-bold text-racingred border-b-2 border-racingred">ADMIN</button>
+                    <button id="tabStaffBtn" onclick="switchLoginTab('staff')" class="flex-1 py-2 text-center text-sm font-bold text-gray-400 hover:text-white">PEGAWAI / KASIR</button>
+                </div>
+
+                <!-- ADMIN FORM -->
+                <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+                    <div class="mb-4">
+                        <label class="block text-xs font-medium text-gray-300 uppercase mb-2">PIN Admin (Default: 051017)</label>
+                        <input type="password" id="adminPinInput" class="w-full bg-darkbg border border-borderbg rounded-lg px-4 py-3 text-white focus:outline-none focus:border-racingred text-center tracking-widest text-lg" placeholder="••••••" required>
+                    </div>
+                    <button type="submit" class="w-full bg-racingred hover:bg-racingredhover text-white font-bold py-3 px-4 rounded-lg transition shadow-lg mt-2">
+                        Masuk Admin
+                    </button>
+                </form>
+
+                <!-- STAFF FORM -->
+                <form id="staffLoginForm" onsubmit="handleStaffLogin(event)" class="hidden">
+                    <div class="mb-4">
+                        <label class="block text-xs font-medium text-gray-300 uppercase mb-2">Pilih Nama Pegawai</label>
+                        <select id="staffSelect" class="w-full bg-darkbg border border-borderbg rounded-lg px-4 py-3 text-white focus:outline-none focus:border-racingred">
+                            <option value="">-- Memuat Daftar Pegawai --</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-medium text-gray-300 uppercase mb-2">Password Pegawai</label>
+                        <input type="password" id="staffPasswordInput" class="w-full bg-darkbg border border-borderbg rounded-lg px-4 py-3 text-white focus:outline-none focus:border-racingred" placeholder="Masukkan Password" required>
+                    </div>
+                    <button type="submit" class="w-full bg-racingorange hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition shadow-lg mt-2">
+                        Masuk Kasir
+                    </button>
+                </form>
+
+                <!-- GAS GENERATOR ACCORDION / TOGGLE -->
+                <div class="mt-8 pt-6 border-t border-borderbg text-center">
+                    <button onclick="toggleGasPanel()" class="text-xs text-gray-400 hover:text-racingorange flex items-center justify-center mx-auto space-x-1">
+                        <i class="fas fa-code"></i>
+                        <span>Panel Generator Kode GAS Backend</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD APP (AFTER LOGIN) -->
+        <div id="mainDashboardView" class="hidden flex-1 flex flex-col md:flex-row overflow-hidden">
+            <!-- SIDEBAR NAV -->
+            <aside class="w-full md:w-64 bg-cardbg border-r border-borderbg flex-shrink-0 flex flex-col">
+                <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+                    <button onclick="switchModule('dashboard')" id="nav-dashboard" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                        <i class="fas fa-tachometer-alt w-5 text-center text-racingred"></i>
+                        <span>Dashboard Utama</span>
+                    </button>
+                    <button onclick="switchModule('order-dm')" id="nav-order-dm" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                        <i class="fas fa-tools w-5 text-center text-racingorange"></i>
+                        <span>Order DM-WORKS</span>
+                    </button>
+                    <button onclick="switchModule('order-umum')" id="nav-order-umum" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                        <i class="fas fa-motorcycle w-5 text-center text-blue-500"></i>
+                        <span>Order Umum</span>
+                    </button>
+                    <button onclick="switchModule('orders-list')" id="nav-orders-list" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                        <i class="fas fa-list-alt w-5 text-center text-green-500"></i>
+                        <span>Semua Riwayat Order</span>
+                    </button>
+                    <button onclick="switchModule('billing')" id="nav-billing" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                        <i class="fas fa-file-invoice-dollar w-5 text-center text-yellow-500"></i>
+                        <span>Penagihan & Piutang</span>
+                    </button>
+                    <button onclick="switchModule('finances')" id="nav-finances" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                        <i class="fas fa-chart-line w-5 text-center text-purple-500"></i>
+                        <span>Pembukuan & Kas</span>
+                    </button>
+
+                    <!-- ADMIN ONLY MODULES -->
+                    <div class="admin-only hidden pt-4 mt-4 border-t border-borderbg">
+                        <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Administrasi</div>
+                        <button onclick="switchModule('users')" id="nav-users" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                            <i class="fas fa-users-cog w-5 text-center text-indigo-400"></i>
+                            <span>Kelola Pegawai</span>
+                        </button>
+                        <button onclick="switchModule('audit')" id="nav-audit" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                            <i class="fas fa-history w-5 text-center text-gray-400"></i>
+                            <span>Audit Log</span>
+                        </button>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- MODULE CONTENT AREA -->
+            <main class="flex-1 overflow-y-auto p-6 bg-darkbg">
+                
+                <!-- MODULE 1: DASHBOARD RINGKASAN -->
+                <div id="module-dashboard" class="module-view space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-white">Ringkasan Operasional</h2>
+                        <button onclick="loadDashboardData()" class="px-3 py-1.5 bg-cardbg hover:bg-borderbg text-xs font-semibold rounded-lg text-gray-300 border border-borderbg">
+                            <i class="fas fa-sync-alt mr-1"></i> Refresh Data
+                        </button>
+                    </div>
+
+                    <!-- KPI CARDS -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-4 shadow-sm">
+                            <div class="text-xs font-medium text-gray-400 uppercase">Total Omzet Order</div>
+                            <div id="kpiTotalOrder" class="text-2xl font-bold text-white mt-1">Rp0</div>
+                            <div class="text-xs text-gray-500 mt-1">Nilai keseluruhan pesanan</div>
+                        </div>
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-4 shadow-sm">
+                            <div class="text-xs font-medium text-gray-400 uppercase">Kas Masuk (Terbayar)</div>
+                            <div id="kpiTotalPaid" class="text-2xl font-bold text-green-400 mt-1">Rp0</div>
+                            <div class="text-xs text-gray-500 mt-1">Pembayaran order diterima</div>
+                        </div>
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-4 shadow-sm">
+                            <div class="text-xs font-medium text-gray-400 uppercase">Total Piutang (Belum Lunas)</div>
+                            <div id="kpiTotalUnpaid" class="text-2xl font-bold text-racingred mt-1">Rp0</div>
+                            <div class="text-xs text-gray-500 mt-1">Sisa tagihan pelanggan</div>
+                        </div>
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-4 shadow-sm">
+                            <div class="text-xs font-medium text-gray-400 uppercase">Total Order Aktif</div>
+                            <div id="kpiActiveOrders" class="text-2xl font-bold text-racingorange mt-1">0</div>
+                            <div class="text-xs text-gray-500 mt-1">Sedang/belum diproduksi</div>
+                        </div>
+                    </div>
+
+                    <!-- RECENT ORDERS TABLE -->
+                    <div class="bg-cardbg border border-borderbg rounded-xl p-5">
+                        <h3 class="text-md font-bold text-white mb-4">5 Order Terbaru</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-300">
+                                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                                    <tr>
+                                        <th class="px-4 py-3">Nota</th>
+                                        <th class="px-4 py-3">Pelanggan</th>
+                                        <th class="px-4 py-3">Jenis</th>
+                                        <th class="px-4 py-3">Total</th>
+                                        <th class="px-4 py-3">Sisa</th>
+                                        <th class="px-4 py-3">Status Bayar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboardRecentOrdersTable">
+                                    <tr><td colspan="6" class="text-center py-4 text-gray-500">Memuat data order...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULE 2 & 3: FORM ORDER (DM-WORKS & UMUM) -->
+                <div id="module-order-form" class="module-view hidden space-y-6">
+                    <div class="flex justify-between items-center border-b border-borderbg pb-4">
+                        <div>
+                            <h2 id="orderFormTitle" class="text-xl font-bold text-white">Buat Order Baru</h2>
+                            <p class="text-xs text-gray-400">Isi detail pesanan produksi knalpot racing</p>
+                        </div>
+                        <span id="orderTypeBadge" class="px-3 py-1 bg-racingorange/20 text-racingorange border border-racingorange/30 rounded-full text-xs font-bold uppercase">DM-WORKS</span>
+                    </div>
+
+                    <form id="mainOrderForm" onsubmit="handleSaveOrder(event)" class="space-y-6">
+                        <input type="hidden" id="orderFormType" value="DM-WORKS">
+
+                        <!-- CUSTOMER INFO -->
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Nama Pelanggan / Bengkel</label>
+                                <input type="text" id="orderCustName" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm focus:border-racingred" required placeholder="Contoh: Bengkel Speed / Budi">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Nomor Telepon / WA</label>
+                                <input type="text" id="orderCustPhone" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm focus:border-racingred" placeholder="08123456789">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Target Selesai & Prioritas</label>
+                                <div class="flex space-x-2">
+                                    <input type="date" id="orderTargetDate" class="flex-1 bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm focus:border-racingred" required>
+                                    <label class="flex items-center space-x-1 bg-darkbg px-3 py-2 rounded-lg border border-borderbg cursor-pointer">
+                                        <input type="checkbox" id="orderIsPriority" class="accent-racingred">
+                                        <span class="text-xs font-bold text-racingred">PRIORITAS</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ORDER ITEMS BUILDER -->
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-5 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Daftar Item Produk / Jasa Custom</h3>
+                                <button type="button" onclick="addOrderItemRow()" class="px-3 py-1.5 bg-racingred/20 hover:bg-racingred text-racingred hover:text-white border border-racingred/30 rounded-lg text-xs font-bold transition">
+                                    <i class="fas fa-plus mr-1"></i> Tambah Item
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                                        <tr>
+                                            <th class="px-3 py-2">Item & Spesifikasi Custom</th>
+                                            <th class="px-3 py-2 w-24">Jumlah</th>
+                                            <th class="px-3 py-2 w-32">Harga Satuan</th>
+                                            <th class="px-3 py-2 w-36">Subtotal</th>
+                                            <th class="px-3 py-2 w-12">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="orderItemsTableBody">
+                                        <!-- ITEM ROWS INSERTED DYNAMICALLY -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- PAYMENT & SUMMARY -->
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Catatan Khusus Pesanan</label>
+                                <textarea id="orderNotes" rows="4" class="w-full bg-darkbg border border-borderbg rounded-lg p-3 text-white text-sm focus:border-racingred" placeholder="Catatan bahan, lekukan, silencer, stiker, dll..."></textarea>
+                            </div>
+                            <div class="space-y-3 bg-darkbg p-4 rounded-lg border border-borderbg">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-400">Total Nilai Order:</span>
+                                    <span id="summaryTotalOrder" class="font-bold text-white text-lg">Rp0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-semibold text-gray-300 uppercase">Uang Muka / DP Awal:</span>
+                                    <input type="number" id="orderDpInput" oninput="calculateOrderSummary()" class="w-40 bg-cardbg border border-borderbg rounded-lg px-3 py-1.5 text-right text-green-400 font-bold focus:border-racingred" value="0" min="0">
+                                </div>
+                                <div class="flex justify-between text-sm border-t border-borderbg pt-2">
+                                    <span class="text-gray-400">Sisa Tagihan:</span>
+                                    <span id="summaryRemaining" class="font-bold text-racingred text-lg">Rp0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end space-x-3">
+                            <button type="button" onclick="switchModule('dashboard')" class="px-6 py-3 bg-cardbg hover:bg-borderbg text-gray-300 font-bold rounded-lg transition">Batal</button>
+                            <button type="submit" class="px-8 py-3 bg-racingred hover:bg-racingredhover text-white font-bold rounded-lg transition shadow-lg flex items-center">
+                                <i class="fas fa-save mr-2"></i> Simpan Order & Buat Nota
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- MODULE 4: SEMUA RIWAYAT ORDER -->
+                <div id="module-orders-list" class="module-view hidden space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h2 class="text-xl font-bold text-white">Riwayat Seluruh Order</h2>
+                        <div class="flex flex-wrap gap-2">
+                            <input type="text" id="searchOrderInput" oninput="filterOrdersTable()" placeholder="Cari Nota / Pelanggan..." class="bg-cardbg border border-borderbg rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-racingred">
+                            <select id="filterTypeSelect" onchange="filterOrdersTable()" class="bg-cardbg border border-borderbg rounded-lg px-3 py-1.5 text-sm text-white">
+                                <option value="ALL">Semua Jenis</option>
+                                <option value="DM-WORKS">DM-WORKS</option>
+                                <option value="UMUM">UMUM</option>
+                            </select>
+                            <select id="filterStatusSelect" onchange="filterOrdersTable()" class="bg-cardbg border border-borderbg rounded-lg px-3 py-1.5 text-sm text-white">
+                                <option value="ALL">Semua Status Bayar</option>
+                                <option value="BELUM BAYAR">Belum Bayar</option>
+                                <option value="DP">DP</option>
+                                <option value="LUNAS">Lunas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-cardbg border border-borderbg rounded-xl overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-300">
+                                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                                    <tr>
+                                        <th class="px-4 py-3">Nota</th>
+                                        <th class="px-4 py-3">Tanggal</th>
+                                        <th class="px-4 py-3">Pelanggan</th>
+                                        <th class="px-4 py-3">Total</th>
+                                        <th class="px-4 py-3">Terbayar</th>
+                                        <th class="px-4 py-3">Sisa</th>
+                                        <th class="px-4 py-3">Status Produksi</th>
+                                        <th class="px-4 py-3">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ordersListTableBody">
+                                    <tr><td colspan="8" class="text-center py-6 text-gray-500">Memuat data order...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULE 5: PENAGIHAN & PIUTANG -->
+                <div id="module-billing" class="module-view hidden space-y-4">
+                    <h2 class="text-xl font-bold text-white">Laporan Penagihan & Piutang</h2>
+                    <div class="bg-cardbg border border-borderbg rounded-xl p-5 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Tanggal Awal</label>
+                                <input type="date" id="billingStartDate" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Tanggal Akhir</label>
+                                <input type="date" id="billingEndDate" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Jenis Pelanggan</label>
+                                <select id="billingCustomerType" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm">
+                                    <option value="ALL">Semua Pelanggan</option>
+                                    <option value="DM-WORKS">DM-WORKS</option>
+                                    <option value="UMUM">UMUM</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="loadBillingReport()" class="w-full py-2 bg-racingred hover:bg-racingredhover text-white font-bold rounded-lg transition text-sm">
+                                    <i class="fas fa-filter mr-1"></i> Tampilkan Tagihan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-cardbg border border-borderbg rounded-xl p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-md font-bold text-white">Daftar Nota Belum Lunas</h3>
+                            <button onclick="printBillingReport()" class="px-3 py-1.5 bg-darkbg border border-borderbg hover:bg-borderbg text-xs font-bold text-gray-300 rounded-lg">
+                                <i class="fas fa-print mr-1"></i> Cetak Laporan
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-300">
+                                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                                    <tr>
+                                        <th class="px-4 py-3">Nota</th>
+                                        <th class="px-4 py-3">Tanggal</th>
+                                        <th class="px-4 py-3">Pelanggan</th>
+                                        <th class="px-4 py-3">Total Order</th>
+                                        <th class="px-4 py-3">Sudah Dibayar</th>
+                                        <th class="px-4 py-3 text-racingred">Sisa Piutang</th>
+                                        <th class="px-4 py-3">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="billingReportTableBody">
+                                    <tr><td colspan="7" class="text-center py-6 text-gray-500">Silakan tentukan filter di atas.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULE 6: PEMBUKUAN & FINANCES -->
+                <div id="module-finances" class="module-view hidden space-y-6">
+                    <h2 class="text-xl font-bold text-white">Pembukuan & Arus Kas</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-4">
+                            <div class="text-xs font-semibold text-gray-400 uppercase">Penerimaan Kas (Pembayaran)</div>
+                            <div id="financeRevenue" class="text-xl font-bold text-green-400 mt-1">Rp0</div>
+                        </div>
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-4">
+                            <div class="text-xs font-semibold text-gray-400 uppercase">Pengeluaran Operasional</div>
+                            <div id="financeExpense" class="text-xl font-bold text-racingred mt-1">Rp0</div>
+                        </div>
+                        <div class="bg-cardbg border border-borderbg rounded-xl p-4">
+                            <div class="text-xs font-semibold text-gray-400 uppercase">Arus Kas Bersih</div>
+                            <div id="financeNet" class="text-xl font-bold text-white mt-1">Rp0</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-cardbg border border-borderbg rounded-xl p-5 space-y-4">
+                        <h3 class="text-md font-bold text-white">Catat Pengeluaran Operasional Baru</h3>
+                        <form id="expenseForm" onsubmit="handleAddExpense(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Kategori</label>
+                                <select id="expCategory" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm" required>
+                                    <option value="Bahan Baku">Bahan Baku (Pipa/Plat/Silencer)</option>
+                                    <option value="Operasional">Operasional Bengkel</option>
+                                    <option value="Gaji/Bonus">Gaji & Bonus Pegawai</option>
+                                    <option value="Lainnya">Lain-lain</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Deskripsi Pengeluaran</label>
+                                <input type="text" id="expDesc" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm" placeholder="Contoh: Beli Pipa Stainless 304" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Nominal (Rp)</label>
+                                <input type="number" id="expAmount" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm" placeholder="150000" min="1" required>
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" class="w-full py-2 bg-racingorange hover:bg-orange-600 text-white font-bold rounded-lg transition text-sm">
+                                    <i class="fas fa-plus mr-1"></i> Simpan Pengeluaran
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- MODULE 7: KELOLA PEGAWAI (ADMIN ONLY) -->
+                <div id="module-users" class="module-view hidden space-y-4">
+                    <h2 class="text-xl font-bold text-white">Pengelolaan Pegawai & Kasir</h2>
+                    <div class="bg-cardbg border border-borderbg rounded-xl p-5 space-y-4">
+                        <h3 class="text-md font-bold text-white">Tambah Pegawai Baru</h3>
+                        <form id="addUserForm" onsubmit="handleAddUser(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Nama Lengkap</label>
+                                <input type="text" id="newUserName" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm" required placeholder="Nama Kasir/Teknisi">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Password Kasir</label>
+                                <input type="password" id="newUserPassword" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm" required placeholder="••••••••">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" class="w-full py-2 bg-racingred hover:bg-racingredhover text-white font-bold rounded-lg transition text-sm">
+                                    <i class="fas fa-user-plus mr-1"></i> Tambah Akun Pegawai
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-cardbg border border-borderbg rounded-xl p-5">
+                        <h3 class="text-md font-bold text-white mb-4">Daftar Pegawai Aktif</h3>
+                        <table class="w-full text-sm text-left text-gray-300">
+                            <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                                <tr>
+                                    <th class="px-4 py-3">ID</th>
+                                    <th class="px-4 py-3">Nama Lengkap</th>
+                                    <th class="px-4 py-3">Role</th>
+                                    <th class="px-4 py-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersListTableBody">
+                                <tr><td colspan="4" class="text-center py-4 text-gray-500">Memuat daftar pegawai...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MODULE 8: AUDIT LOG -->
+                <div id="module-audit" class="module-view hidden space-y-4">
+                    <h2 class="text-xl font-bold text-white">Audit Log Aktivitas Sistem</h2>
+                    <div class="bg-cardbg border border-borderbg rounded-xl p-5">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-300">
+                                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                                    <tr>
+                                        <th class="px-4 py-3">Waktu</th>
+                                        <th class="px-4 py-3">Pengguna</th>
+                                        <th class="px-4 py-3">Aktivitas</th>
+                                        <th class="px-4 py-3">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditLogTableBody">
+                                    <tr><td colspan="4" class="text-center py-4 text-gray-500">Memuat log aktivitas...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- GAS PANEL MODAL (GENERATOR KODE BACKEND) -->
+    <div id="gasPanelModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cardbg border border-borderbg rounded-xl max-w-3xl w-full p-6 space-y-4 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-borderbg pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center">
+                    <i class="fas fa-code text-racingorange mr-2"></i> Backend GAS Code Generator
+                </h3>
+                <button onclick="toggleGasPanel()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <p class="text-xs text-gray-400">Salin seluruh kode backend di bawah ini dan tempelkan ke Google Apps Script Editor (`Code.gs`):</p>
+            <textarea id="gasCodeDisplay" class="flex-1 bg-darkbg border border-borderbg rounded-lg p-3 text-xs font-mono text-green-400 overflow-y-auto h-64 focus:outline-none" readonly></textarea>
+            <div class="flex justify-between items-center pt-2 border-t border-borderbg">
+                <span id="copyStatus" class="text-xs text-green-400 hidden"><i class="fas fa-check mr-1"></i> Kode berhasil disalin ke clipboard!</span>
+                <div class="flex space-x-2 ml-auto">
+                    <a href="https://docs.google.com/spreadsheets/d/1iMjiaw6qWRICdHaWyoan1ZQD_tHTG3zeFrIixRdoIHY/edit?usp=sharing" target="_blank" class="px-3 py-2 bg-darkbg hover:bg-borderbg text-xs font-bold text-gray-300 rounded-lg border border-borderbg flex items-center">
+                        <i class="fas fa-table mr-1"></i> Buka Spreadsheet Database
+                    </a>
+                    <button onclick="copyGasCode()" class="px-4 py-2 bg-racingorange hover:bg-orange-600 text-xs font-bold text-white rounded-lg transition">
+                        <i class="fas fa-copy mr-1"></i> Salin Kode GAS
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CICILAN / PEMBAYARAN TAMBAHAN -->
+    <div id="paymentModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cardbg border border-borderbg rounded-xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-borderbg pb-3">
+                <h3 class="text-lg font-bold text-white">Catat Pembayaran Cicilan</h3>
+                <button onclick="closePaymentModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="addPaymentForm" onsubmit="handleSavePayment(event)" class="space-y-4">
+                <input type="hidden" id="payOrderId">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Nomor Nota</label>
+                    <input type="text" id="payNotaNum" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm" readonly>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Total Order</label>
+                        <input type="text" id="payTotalOrder" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-white text-sm" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Sisa Tagihan</label>
+                        <input type="text" id="payRemaining" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-racingred font-bold text-sm" readonly>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Nominal Pembayaran Baru (Rp)</label>
+                    <input type="number" id="payAmount" class="w-full bg-darkbg border border-borderbg rounded-lg px-3 py-2 text-green-400 font-bold text-sm focus:border-racingred" required min="1">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closePaymentModal()" class="px-4 py-2 bg-darkbg text-gray-300 font-bold text-xs rounded-lg">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-racingred text-white font-bold text-xs rounded-lg hover:bg-racingredhover">Simpan Pembayaran</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NOTA PRINT CONTAINER (HIDDEN UNTIL PRINT) -->
+    <div id="printable-area" class="hidden">
+        <div class="text-center border-b-2 border-black pb-4 mb-4">
+            <h1 class="text-2xl font-bold">DRAGONLIE RACING EXHAUST</h1>
+            <p class="text-sm">Spesialis Knalpot Racing Custom & Fabrikasi</p>
+            <p class="text-xs">WA / Telp: 0812-3456-7890 | Asia/Jakarta</p>
+        </div>
+        <div id="printNotaContent">
+            <!-- NOTA HTML GENERATED DYNAMICALLY -->
+        </div>
+    </div>
+
+    <!-- APPLICATION FRONTEND LOGIC -->
+    <script>
+        // APP STATE
+        let currentUser = null;
+        let ordersData = [];
+        let itemRowIndex = 0;
+
+        // INITIALIZATION
+        document.addEventListener("DOMContentLoaded", () => {
+            checkBackendConnection();
+            addOrderItemRow(); // Initial item row for order form
+        });
+
+        // UTIL: FORMAT RUPIAH
+        function formatRupiah(number) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(number || 0);
+        }
+
+        // UTIL: TOAST NOTIFICATION
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastContent = document.getElementById('toastContent');
+            
+            toastMessage.textContent = message;
+            toast.classList.remove('translate-x-full', 'opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+            }, 4000);
+        }
+
+        // UTIL: SHOW/HIDE LOADING
+        function toggleLoading(show, text = "Memuat data...") {
+            const overlay = document.getElementById('loadingOverlay');
+            document.getElementById('loadingText').textContent = text;
+            if (show) overlay.classList.remove('hidden');
+            else overlay.classList.add('hidden');
+        }
+
+        // API FETCH WRAPPER FOR GAS WEB APP
+        async function callBackend(action, payload = {}) {
+            if (!CONFIG.GAS_WEB_APP_URL || CONFIG.GAS_WEB_APP_URL.includes("PASTE_URL")) {
+                showToast("URL Backend GAS belum dikonfigurasi pada file HTML!", "error");
+                throw new Error("GAS URL Not Configured");
+            }
+
+            toggleLoading(true, "Berkomunikasi dengan server...");
+            try {
+                const response = await fetch(CONFIG.GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, ...payload, sessionUser: currentUser })
+                });
+                const result = await response.json();
+                toggleLoading(false);
+                if (!result.success) {
+                    showToast(result.message || "Gagal memproses permintaan", "error");
+                    throw new Error(result.message);
+                }
+                return result;
+            } catch (err) {
+                toggleLoading(false);
+                console.error("Backend Error:", err);
+                showToast("Terjadi kesalahan jaringan/server", "error");
+                throw err;
+            }
+        }
+
+        // HEALTH CHECK BACKEND
+        async function checkBackendConnection() {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+            
+            try {
+                const res = await callBackend('healthCheck');
+                if (res.success) {
+                    indicator.className = "w-2.5 h-2.5 rounded-full bg-green-500";
+                    text.textContent = "TERHUBUNG (SPREADSHEET OK)";
+                    loadStaffDropdown();
+                }
+            } catch (e) {
+                indicator.className = "w-2.5 h-2.5 rounded-full bg-red-500";
+                text.textContent = "KONEKSI GAGAL";
+            }
+        }
+
+        // LOGIN TABS SWITCHER
+        function switchLoginTab(type) {
+            const adminForm = document.getElementById('adminLoginForm');
+            const staffForm = document.getElementById('staffLoginForm');
+            const tabAdminBtn = document.getElementById('tabAdminBtn');
+            const tabStaffBtn = document.getElementById('tabStaffBtn');
+
+            if (type === 'admin') {
+                adminForm.classList.remove('hidden');
+                staffForm.classList.add('hidden');
+                tabAdminBtn.className = "flex-1 py-2 text-center text-sm font-bold text-racingred border-b-2 border-racingred";
+                tabStaffBtn.className = "flex-1 py-2 text-center text-sm font-bold text-gray-400 hover:text-white";
+            } else {
+                adminForm.classList.add('hidden');
+                staffForm.classList.remove('hidden');
+                tabStaffBtn.className = "flex-1 py-2 text-center text-sm font-bold text-racingorange border-b-2 border-racingorange";
+                tabAdminBtn.className = "flex-1 py-2 text-center text-sm font-bold text-gray-400 hover:text-white";
+            }
+        }
+
+        // LOAD STAFF LIST FOR LOGIN DROPDOWN
+        async function loadStaffDropdown() {
+            try {
+                const res = await callBackend('listUsers');
+                const select = document.getElementById('staffSelect');
+                select.innerHTML = '<option value="">-- Pilih Pegawai --</option>';
+                if (res.data) {
+                    res.data.filter(u => u.status_aktif === 'AKTIF').forEach(user => {
+                        select.innerHTML += `<option value="${user.user_id}">${user.nama_lengkap}</option>`;
+                    });
+                }
+            } catch (e) {}
+        }
+
+        // HANDLE ADMIN LOGIN
+        async function handleAdminLogin(e) {
+            e.preventDefault();
+            const pin = document.getElementById('adminPinInput').value;
+            try {
+                const res = await callBackend('login', { type: 'admin', pin });
+                if (res.success) {
+                    currentUser = res.data;
+                    setupUserSession();
+                }
+            } catch (e) {}
+        }
+
+        // HANDLE STAFF LOGIN
+        async function handleStaffLogin(e) {
+            e.preventDefault();
+            const userId = document.getElementById('staffSelect').value;
+            const password = document.getElementById('staffPasswordInput').value;
+            if (!userId) return showToast("Pilih pegawai terlebih dahulu", "error");
+
+            try {
+                const res = await callBackend('login', { type: 'staff', userId, password });
+                if (res.success) {
+                    currentUser = res.data;
+                    setupUserSession();
+                }
+            } catch (e) {}
+        }
+
+        // SETUP SESSION & UI ACCORDING TO ROLE
+        function setupUserSession() {
+            document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('mainDashboardView').classList.remove('hidden');
+            document.getElementById('userProfile').classList.remove('hidden');
+            document.getElementById('userName').textContent = currentUser.nama_lengkap;
+            document.getElementById('userRole').textContent = currentUser.role;
+
+            if (currentUser.role === 'ADMIN') {
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+            } else {
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
+            }
+
+            showToast(`Selamat datang, ${currentUser.nama_lengkap}`);
+            switchModule('dashboard');
+        }
+
+        // LOGOUT
+        function logout() {
+            currentUser = null;
+            document.getElementById('loginView').classList.remove('hidden');
+            document.getElementById('mainDashboardView').classList.add('hidden');
+            document.getElementById('userProfile').classList.add('hidden');
+            document.getElementById('adminPinInput').value = '';
+            document.getElementById('staffPasswordInput').value = '';
+            showToast("Sesi berhasil diakhiri");
+        }
+
+        // NAVIGATION MODULE SWITCHER
+        function switchModule(modId) {
+            document.querySelectorAll('.module-view').forEach(m => m.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('bg-darkbg', 'text-white'));
+
+            if (modId === 'order-dm') {
+                document.getElementById('module-order-form').classList.remove('hidden');
+                document.getElementById('orderFormTitle').textContent = "Buat Order DM-WORKS";
+                document.getElementById('orderFormType').value = "DM-WORKS";
+                document.getElementById('orderTypeBadge').textContent = "DM-WORKS";
+                document.getElementById('orderTypeBadge').className = "px-3 py-1 bg-racingorange/20 text-racingorange border border-racingorange/30 rounded-full text-xs font-bold uppercase";
+            } else if (modId === 'order-umum') {
+                document.getElementById('module-order-form').classList.remove('hidden');
+                document.getElementById('orderFormTitle').textContent = "Buat Order Umum DragonLie";
+                document.getElementById('orderFormType').value = "UMUM";
+                document.getElementById('orderTypeBadge').textContent = "UMUM";
+                document.getElementById('orderTypeBadge').className = "px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-bold uppercase";
+            } else {
+                const targetMod = document.getElementById(`module-${modId}`);
+                if (targetMod) targetMod.classList.remove('hidden');
+            }
+
+            const activeNav = document.getElementById(`nav-${modId}`);
+            if (activeNav) activeNav.classList.add('bg-darkbg', 'text-white');
+
+            // Trigger Module Specific Data Fetch
+            if (modId === 'dashboard') loadDashboardData();
+            if (modId === 'orders-list') loadOrdersList();
+            if (modId === 'billing') loadBillingReport();
+            if (modId === 'finances') loadFinancialData();
+            if (modId === 'users' && currentUser.role === 'ADMIN') loadUsersData();
+            if (modId === 'audit' && currentUser.role === 'ADMIN') loadAuditLogs();
+        }
+
+        // ORDER ITEM DYNAMIC ROWS
+        function addOrderItemRow() {
+            itemRowIndex++;
+            const tbody = document.getElementById('orderItemsTableBody');
+            const tr = document.createElement('tr');
+            tr.id = `itemRow_${itemRowIndex}`;
+            tr.className = "border-b border-borderbg";
+            tr.innerHTML = `
+                <td class="p-2">
+                    <input type="text" class="item-name w-full bg-darkbg border border-borderbg rounded px-2 py-1 text-xs text-white mb-1" placeholder="Nama Produk / Jasa Custom" required>
+                    <input type="text" class="item-spec w-full bg-darkbg border border-borderbg rounded px-2 py-1 text-xs text-gray-400" placeholder="Spesifikasi (Bahan, Ukuran, Lekukan)">
+                </td>
+                <td class="p-2">
+                    <input type="number" oninput="calculateOrderSummary()" class="item-qty w-full bg-darkbg border border-borderbg rounded px-2 py-1 text-xs text-white text-center" value="1" min="1" required>
+                </td>
+                <td class="p-2">
+                    <input type="number" oninput="calculateOrderSummary()" class="item-price w-full bg-darkbg border border-borderbg rounded px-2 py-1 text-xs text-white text-right" value="0" min="0" required>
+                </td>
+                <td class="p-2 text-right">
+                    <span class="item-subtotal text-xs font-bold text-white">Rp0</span>
+                </td>
+                <td class="p-2 text-center">
+                    <button type="button" onclick="removeOrderItemRow('${tr.id}')" class="text-red-500 hover:text-racingred"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            calculateOrderSummary();
+        }
+
+        function removeOrderItemRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (document.querySelectorAll('#orderItemsTableBody tr').length > 1) {
+                row.remove();
+                calculateOrderSummary();
+            } else {
+                showToast("Order minimal harus memiliki 1 item", "error");
+            }
+        }
+
+        function calculateOrderSummary() {
+            let total = 0;
+            document.querySelectorAll('#orderItemsTableBody tr').forEach(row => {
+                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                const subtotal = qty * price;
+                row.querySelector('.item-subtotal').textContent = formatRupiah(subtotal);
+                total += subtotal;
+            });
+
+            const dp = parseFloat(document.getElementById('orderDpInput').value) || 0;
+            const remaining = Math.max(0, total - dp);
+
+            document.getElementById('summaryTotalOrder').textContent = formatRupiah(total);
+            document.getElementById('summaryRemaining').textContent = formatRupiah(remaining);
+        }
+
+        // SAVE ORDER
+        async function handleSaveOrder(e) {
+            e.preventDefault();
+
+            const items = [];
+            document.querySelectorAll('#orderItemsTableBody tr').forEach(row => {
+                items.push({
+                    nama_produk_jasa: row.querySelector('.item-name').value,
+                    spesifikasi: row.querySelector('.item-spec').value,
+                    jumlah: parseFloat(row.querySelector('.item-qty').value),
+                    harga_satuan: parseFloat(row.querySelector('.item-price').value),
+                    subtotal: parseFloat(row.querySelector('.item-qty').value) * parseFloat(row.querySelector('.item-price').value)
+                });
+            });
+
+            const orderPayload = {
+                jenis_pelanggan: document.getElementById('orderFormType').value,
+                nama_pelanggan: document.getElementById('orderCustName').value,
+                nomor_telepon: document.getElementById('orderCustPhone').value,
+                tanggal_target_selesai: document.getElementById('orderTargetDate').value,
+                prioritas: document.getElementById('orderIsPriority').checked ? 'PRIORITAS' : 'NORMAL',
+                catatan: document.getElementById('orderNotes').value,
+                dp_awal: parseFloat(document.getElementById('orderDpInput').value) || 0,
+                items
+            };
+
+            try {
+                const res = await callBackend('createOrder', { order: orderPayload });
+                if (res.success) {
+                    showToast("Order berhasil disimpan!");
+                    printNota(res.data);
+                    switchModule('orders-list');
+                }
+            } catch (err) {}
+        }
+
+        // DASHBOARD DATA
+        async function loadDashboardData() {
+            try {
+                const res = await callBackend('getDashboardKPI');
+                if (res.data) {
+                    document.getElementById('kpiTotalOrder').textContent = formatRupiah(res.data.totalOmzet);
+                    document.getElementById('kpiTotalPaid').textContent = formatRupiah(res.data.totalPaid);
+                    document.getElementById('kpiTotalUnpaid').textContent = formatRupiah(res.data.totalUnpaid);
+                    document.getElementById('kpiActiveOrders').textContent = res.data.activeOrders;
+
+                    const tbody = document.getElementById('dashboardRecentOrdersTable');
+                    tbody.innerHTML = '';
+                    res.data.recentOrders.forEach(o => {
+                        tbody.innerHTML += `
+                            <tr class="border-b border-borderbg">
+                                <td class="px-4 py-3 font-bold text-racingorange">${o.nomor_nota}</td>
+                                <td class="px-4 py-3">${o.nama_pelanggan}</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs ${o.jenis_pelanggan === 'DM-WORKS' ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}">${o.jenis_pelanggan}</span></td>
+                                <td class="px-4 py-3">${formatRupiah(o.total_order)}</td>
+                                <td class="px-4 py-3 text-racingred">${formatRupiah(o.sisa_pembayaran)}</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${o.status_pembayaran === 'LUNAS' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${o.status_pembayaran}</span></td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) {}
+        }
+
+        // LOAD ORDERS LIST
+        async function loadOrdersList() {
+            try {
+                const res = await callBackend('listOrders');
+                if (res.data) {
+                    ordersData = res.data;
+                    renderOrdersTable(ordersData);
+                }
+            } catch (e) {}
+        }
+
+        function renderOrdersTable(data) {
+            const tbody = document.getElementById('ordersListTableBody');
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-gray-500">Tidak ada order ditemukan.</td></tr>';
+                return;
+            }
+
+            data.forEach(o => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-borderbg hover:bg-darkbg/50">
+                        <td class="px-4 py-3 font-bold text-racingorange">${o.nomor_nota} ${o.prioritas === 'PRIORITAS' ? '<i class="fas fa-flag text-racingred ml-1" title="Prioritas"></i>' : ''}</td>
+                        <td class="px-4 py-3">${o.tanggal_order}</td>
+                        <td class="px-4 py-3">${o.nama_pelanggan}</td>
+                        <td class="px-4 py-3">${formatRupiah(o.total_order)}</td>
+                        <td class="px-4 py-3 text-green-400">${formatRupiah(o.total_pembayaran_masuk)}</td>
+                        <td class="px-4 py-3 text-racingred font-semibold">${formatRupiah(o.sisa_pembayaran)}</td>
+                        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs bg-darkbg border border-borderbg">${o.status_produksi}</span></td>
+                        <td class="px-4 py-3 space-x-1">
+                            <button onclick='openPaymentModal(${JSON.stringify(o)})' class="p-1.5 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white rounded" title="Bayar Cicilan"><i class="fas fa-money-bill-wave"></i></button>
+                            <button onclick='printNotaByData(${JSON.stringify(o)})' class="p-1.5 bg-cardbg border border-borderbg text-gray-300 hover:text-white rounded" title="Cetak Nota"><i class="fas fa-print"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function filterOrdersTable() {
+            const search = document.getElementById('searchOrderInput').value.toLowerCase();
+            const type = document.getElementById('filterTypeSelect').value;
+            const status = document.getElementById('filterStatusSelect').value;
+
+            const filtered = ordersData.filter(o => {
+                const matchSearch = o.nomor_nota.toLowerCase().includes(search) || o.nama_pelanggan.toLowerCase().includes(search);
+                const matchType = type === 'ALL' || o.jenis_pelanggan === type;
+                const matchStatus = status === 'ALL' || o.status_pembayaran === status;
+                return matchSearch && matchType && matchStatus;
+            });
+
+            renderOrdersTable(filtered);
+        }
+
+        // PAYMENT MODAL & ACTION
+        function openPaymentModal(order) {
+            document.getElementById('payOrderId').value = order.order_id;
+            document.getElementById('payNotaNum').value = order.nomor_nota;
+            document.getElementById('payTotalOrder').value = formatRupiah(order.total_order);
+            document.getElementById('payRemaining').value = formatRupiah(order.sisa_pembayaran);
+            document.getElementById('payAmount').value = order.sisa_pembayaran;
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+        }
+
+        async function handleSavePayment(e) {
+            e.preventDefault();
+            const orderId = document.getElementById('payOrderId').value;
+            const amount = parseFloat(document.getElementById('payAmount').value);
+
+            try {
+                const res = await callBackend('addPayment', { orderId, amount });
+                if (res.success) {
+                    showToast("Pembayaran berhasil dicatat!");
+                    closePaymentModal();
+                    loadOrdersList();
+                }
+            } catch (e) {}
+        }
+
+        // PRINT NOTA GENERATOR
+        function printNota(order) {
+            const container = document.getElementById('printNotaContent');
+            let itemsHtml = '';
+            (order.items || []).forEach(i => {
+                itemsHtml += `
+                    <tr class="border-b">
+                        <td class="py-2">${i.nama_produk_jasa}<br><small class="text-gray-600">${i.spesifikasi || ''}</small></td>
+                        <td class="py-2 text-center">${i.jumlah}</td>
+                        <td class="py-2 text-right">${formatRupiah(i.harga_satuan)}</td>
+                        <td class="py-2 text-right">${formatRupiah(i.subtotal)}</td>
+                    </tr>
+                `;
+            });
+
+            container.innerHTML = `
+                <div class="flex justify-between text-xs mb-4">
+                    <div>
+                        <p><strong>Nota #:</strong> ${order.nomor_nota}</p>
+                        <p><strong>Pelanggan:</strong> ${order.nama_pelanggan} (${order.jenis_pelanggan})</p>
+                        <p><strong>Telepon:</strong> ${order.nomor_telepon || '-'}</p>
+                    </div>
+                    <div class="text-right">
+                        <p><strong>Tanggal:</strong> ${order.tanggal_order}</p>
+                        <p><strong>Target Selesai:</strong> ${order.tanggal_target_selesai}</p>
+                        <p><strong>Kasir:</strong> ${currentUser ? currentUser.nama_lengkap : 'Admin'}</p>
+                    </div>
+                </div>
+
+                <table class="w-full text-xs text-left mb-4">
+                    <thead class="border-b-2 border-black">
+                        <tr>
+                            <th class="py-1">Item / Spesifikasi</th>
+                            <th class="py-1 text-center">Qty</th>
+                            <th class="py-1 text-right">Harga</th>
+                            <th class="py-1 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+
+                <div class="flex justify-end text-xs space-y-1 flex-col text-right border-t pt-2">
+                    <p><strong>Total Order:</strong> ${formatRupiah(order.total_order)}</p>
+                    <p><strong>Total Terbayar:</strong> ${formatRupiah(order.total_pembayaran_masuk || order.dp_awal)}</p>
+                    <p class="text-sm font-bold"><strong>Sisa Tagihan:</strong> ${formatRupiah(order.sisa_pembayaran)}</p>
+                </div>
+
+                <div class="mt-8 text-center text-xs">
+                    <p>Terima kasih telah mempercayakan produksi knalpot Anda pada DragonLie Racing Exhaust!</p>
+                </div>
+            `;
+
+            document.getElementById('printable-area').classList.remove('hidden');
+            window.print();
+            document.getElementById('printable-area').classList.add('hidden');
+        }
+
+        function printNotaByData(order) {
+            callBackend('getOrderDetail', { orderId: order.order_id }).then(res => {
+                if (res.success) printNota(res.data);
+            });
+        }
+
+        // FINANCES & EXPENSES
+        async function loadFinancialData() {
+            try {
+                const res = await callBackend('getFinancialReport');
+                if (res.data) {
+                    document.getElementById('financeRevenue').textContent = formatRupiah(res.data.revenue);
+                    document.getElementById('financeExpense').textContent = formatRupiah(res.data.expense);
+                    document.getElementById('financeNet').textContent = formatRupiah(res.data.net);
+                }
+            } catch (e) {}
+        }
+
+        async function handleAddExpense(e) {
+            e.preventDefault();
+            const category = document.getElementById('expCategory').value;
+            const description = document.getElementById('expDesc').value;
+            const amount = parseFloat(document.getElementById('expAmount').value);
+
+            try {
+                const res = await callBackend('createExpense', { category, description, amount });
+                if (res.success) {
+                    showToast("Pengeluaran berhasil dicatat!");
+                    document.getElementById('expenseForm').reset();
+                    loadFinancialData();
+                }
+            } catch (e) {}
+        }
+
+        // USERS MANAGEMENT (ADMIN)
+        async function loadUsersData() {
+            try {
+                const res = await callBackend('listUsers');
+                const tbody = document.getElementById('usersListTableBody');
+                tbody.innerHTML = '';
+                if (res.data) {
+                    res.data.forEach(u => {
+                        tbody.innerHTML += `
+                            <tr class="border-b border-borderbg">
+                                <td class="px-4 py-3">${u.user_id}</td>
+                                <td class="px-4 py-3 font-bold">${u.nama_lengkap}</td>
+                                <td class="px-4 py-3">${u.role}</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs bg-green-500/20 text-green-400">${u.status_aktif}</span></td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) {}
+        }
+
+        async function handleAddUser(e) {
+            e.preventDefault();
+            const nama_lengkap = document.getElementById('newUserName').value;
+            const password = document.getElementById('newUserPassword').value;
+
+            try {
+                const res = await callBackend('createUser', { nama_lengkap, password });
+                if (res.success) {
+                    showToast("Pegawai baru berhasil ditambahkan!");
+                    document.getElementById('addUserForm').reset();
+                    loadUsersData();
+                }
+            } catch (e) {}
+        }
+
+        // AUDIT LOGS
+        async function loadAuditLogs() {
+            try {
+                const res = await callBackend('getAuditLog');
+                const tbody = document.getElementById('auditLogTableBody');
+                tbody.innerHTML = '';
+                if (res.data) {
+                    res.data.slice(-20).reverse().forEach(log => {
+                        tbody.innerHTML += `
+                            <tr class="border-b border-borderbg text-xs">
+                                <td class="px-4 py-2 text-gray-400">${log.timestamp}</td>
+                                <td class="px-4 py-2 font-bold">${log.nama_pengguna}</td>
+                                <td class="px-4 py-2 text-racingorange">${log.aktivitas}</td>
+                                <td class="px-4 py-2">${log.keterangan}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) {}
+        }
+
+        // BILLING REPORT
+        async function loadBillingReport() {
+            try {
+                const res = await callBackend('getBillingReport');
+                const tbody = document.getElementById('billingReportTableBody');
+                tbody.innerHTML = '';
+                if (res.data && res.data.length > 0) {
+                    res.data.forEach(o => {
+                        tbody.innerHTML += `
+                            <tr class="border-b border-borderbg">
+                                <td class="px-4 py-3 font-bold text-racingorange">${o.nomor_nota}</td>
+                                <td class="px-4 py-3">${o.tanggal_order}</td>
+                                <td class="px-4 py-3">${o.nama_pelanggan}</td>
+                                <td class="px-4 py-3">${formatRupiah(o.total_order)}</td>
+                                <td class="px-4 py-3 text-green-400">${formatRupiah(o.total_pembayaran_masuk)}</td>
+                                <td class="px-4 py-3 text-racingred font-bold">${formatRupiah(o.sisa_pembayaran)}</td>
+                                <td class="px-4 py-3">
+                                    <button onclick='openPaymentModal(${JSON.stringify(o)})' class="px-2 py-1 bg-green-600 text-white rounded text-xs">Bayar</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-gray-500">Semua tagihan lunas!</td></tr>';
+                }
+            } catch (e) {}
+        }
+
+        function printBillingReport() {
+            window.print();
+        }
+
+        // GAS PANEL GENERATOR MODAL LOGIC
+        function toggleGasPanel() {
+            const modal = document.getElementById('gasPanelModal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('gasCodeDisplay').value = `/* backend Apps Script code will be populated from source Code.gs */`;
+            }
+        }
+
+        function copyGasCode() {
+            const codeText = document.getElementById('gasCodeDisplay');
+            codeText.select();
+            document.execCommand('copy');
+            const status = document.getElementById('copyStatus');
+            status.classList.remove('hidden');
+            setTimeout(() => status.classList.add('hidden'), 3000);
+        }
+    </script>
+</body>
+</html>
