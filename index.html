@@ -111,7 +111,7 @@
                 <!-- ADMIN FORM -->
                 <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
                     <div class="mb-4">
-                        <label class="block text-xs font-medium text-gray-300 uppercase mb-2">PIN Admin (Default: 051017)</label>
+                        <label class="block text-xs font-medium text-gray-300 uppercase mb-2">PIN Admin</label>
                         <input type="password" id="adminPinInput" class="w-full bg-darkbg border border-borderbg rounded-lg px-4 py-3 text-white focus:outline-none focus:border-racingred text-center tracking-widest text-lg" placeholder="••••••" required>
                     </div>
                     <button type="submit" class="w-full bg-racingred hover:bg-racingredhover text-white font-bold py-3 px-4 rounded-lg transition shadow-lg mt-2">
@@ -136,13 +136,6 @@
                     </button>
                 </form>
 
-                <!-- GAS GENERATOR ACCORDION / TOGGLE -->
-                <div class="mt-8 pt-6 border-t border-borderbg text-center">
-                    <button onclick="toggleGasPanel()" class="text-xs text-gray-400 hover:text-racingorange flex items-center justify-center mx-auto space-x-1">
-                        <i class="fas fa-code"></i>
-                        <span>Panel Generator Kode GAS Backend</span>
-                    </button>
-                </div>
             </div>
         </div>
 
@@ -187,6 +180,10 @@
                             <i class="fas fa-history w-5 text-center text-gray-400"></i>
                             <span>Audit Log</span>
                         </button>
+                        <button onclick="toggleGasPanel()" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-darkbg hover:text-white transition">
+                            <i class="fas fa-code w-5 text-center text-racingorange"></i>
+                            <span>Kode GAS Backend</span>
+                        </button>
                     </div>
                 </nav>
             </aside>
@@ -198,9 +195,14 @@
                 <div id="module-dashboard" class="module-view space-y-6">
                     <div class="flex justify-between items-center">
                         <h2 class="text-xl font-bold text-white">Ringkasan Operasional</h2>
-                        <button onclick="loadDashboardData()" class="px-3 py-1.5 bg-cardbg hover:bg-borderbg text-xs font-semibold rounded-lg text-gray-300 border border-borderbg">
-                            <i class="fas fa-sync-alt mr-1"></i> Refresh Data
-                        </button>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="toggleGasPanel()" class="admin-only hidden px-3 py-1.5 bg-racingorange/20 hover:bg-racingorange/30 text-racingorange border border-racingorange/40 text-xs font-semibold rounded-lg transition flex items-center">
+                                <i class="fas fa-code mr-1.5"></i> Kode GAS Backend
+                            </button>
+                            <button onclick="loadDashboardData()" class="px-3 py-1.5 bg-cardbg hover:bg-borderbg text-xs font-semibold rounded-lg text-gray-300 border border-borderbg">
+                                <i class="fas fa-sync-alt mr-1"></i> Refresh Data
+                            </button>
+                        </div>
                     </div>
 
                     <!-- KPI CARDS -->
